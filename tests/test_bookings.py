@@ -27,8 +27,12 @@ def test_booking_rules(client, manager_h, admin_h, customer_h):
     booking = book(client, customer_h, unit["id"]).get_json()
     res = client.patch(f"/api/bookings/{booking['id']}/status", headers=customer_h, json={"status": "confirmed"})
     assert res.status_code == 403
-    
+
     register(client, "Dan", "dan@test.com", "customer")
     dan_h = login(client, "dan@test.com")
     assert client.get(f"/api/bookings/{booking['id']}", headers=dan_h).status_code == 404
     assert client.get("/api/bookings/mine", headers=dan_h).get_json()["total"] == 0
+
+def test_cannot_book_unapproved_property(client, manager_h, admin_h, customer_h):
+    _, unit = make_listing(client, manager_h, admin_h, approve=False)
+    assert book(client, customer_h, unit["id"]).status_code == 404
