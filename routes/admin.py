@@ -86,7 +86,7 @@ def stats():
                 "total": Property.query.count(),
                 "pending": Property.query.filter_by(status="pending").count(),
                 "approved": Property.query.filter_by(status="approved").count(),
-                "rejected": Property.query.filter_---by(status="rejected").count(),
+                "rejected": Property.query.filter_by(status="rejected").count(),
             },
             "units": Unit.query.count(),
             "bookings": {
