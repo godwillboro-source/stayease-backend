@@ -1,17 +1,36 @@
-from flask_bcrypt import Bcrypt
+import os
+
+from dotenv import load_dotenv
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import MetaData
 
-# Naming convention keeps constraint names stable, which makes migrations (esp. SQLite) cleaner.
-metadata = MetaData(
-    naming_convention={
-        "ix": "ix_%(column_0_label)s",
-        "uq": "uq_%(table_name)s_%(column_0_name)s",
-        "ck": "ck_%(table_name)s_%(constraint_name)s",
-        "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
-        "pk": "pk_%(table_name)s",
+load_dotenv()
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+db = SQLAlchemy()
+
+
+class Config:
+    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-me-in-production-0000")
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() in {
+        "1",
+        "true",
+        "yes",
     }
-)
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        "DATABASE_URL", "sqlite:///" + os.path.join(BASE_DIR, "rental.db")
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    JSON_SORT_KEYS = False
+    CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
 
-db = SQLAlchemy(metadata=metadata)
-bcrypt = Bcrypt()
+    # First admin account, created by `seed.py`
+    ADMIN_NAME = os.getenv("ADMIN_NAME", "Admin")
+    ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@rental.com")
+    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@1234")
+
+
+class TestConfig(Config):
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
