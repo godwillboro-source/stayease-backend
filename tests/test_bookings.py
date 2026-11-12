@@ -19,3 +19,16 @@ def test_booking_flow_and_availability(client, manager_h, admin_h, customer_h):
 
     res = client.patch(f"/api/bookings/{booking['id']}/status", headers=manager_h, json={"status": "confirmed"})
     assert res.status_code == 409
+
+def test_booking_rules(client, manager_h, admin_h, customer_h):
+    _, unit = make_listing(client, manager_h, admin_h)
+    assert book(client, customer_h, unit["id"], start="2026-12-10", end="2026-12-01").status_code == 400
+    assert book(client, manager_h, unit["id"]).status_code == 403
+    booking = book(client, customer_h, unit["id"]).get_json()
+    res = client.patch(f"/api/bookings/{booking['id']}/status", headers=customer_h, json={"status": "confirmed"})
+    assert res.status_code == 403
+    
+    register(client, "Dan", "dan@test.com", "customer")
+    dan_h = login(client, "dan@test.com")
+    assert client.get(f"/api/bookings/{booking['id']}", headers=dan_h).status_code == 404
+    assert client.get("/api/bookings/mine", headers=dan_h).get_json()["total"] == 0
