@@ -48,4 +48,31 @@ def create_booking():
     db.session.commit()
     return jsonify(booking_schema.dump(booking)), 201
 
+@app.get("/api/bookings/mine")
+@roles_required("customer")
+def my_bookings():
+    f = load_or_400(StatusFilterSchema(), request.args.to_dict())
+    query = Booking.query.filter_by(customer_id=g.current_user.id)
+    if f.get("status"):
+        query = query.filter(Booking.status == f["status"])
+    query = query.order_by(Booking.created_at.desc())
+    return jsonify(paginate(query, booking_schema, f["page"], f["per_page"]))
+
+@app.get("/api/bookings")
+@roles_required("manager", "admin")
+def list_bookings():
+    """Managers see bookings for their own properties; admins see everything."""
+    f = load_or_400(StatusFilterSchema(), request.args.to_dict())
+    query = Booking.query
+    if g.current_user.role == "manager":
+        query = (
+            query.join(Unit, Booking.unit_id == Unit.id)
+            .join(Property, Unit.property_id == Property.id)
+            .filter(Property.manager_id == g.current_user.id)
+        )
+    if f.get("status"):
+        query = query.filter(Booking.status == f["status"])
+    query = query.order_by(Booking.created_at.desc())
+    return jsonify(paginate(query, booking_schema, f["page"], f["per_page"]))
+
 
