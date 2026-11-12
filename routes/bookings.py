@@ -8,3 +8,10 @@ from models import Booking, Property, Unit
 from schemas import BookingSchema, BookingStatusSchema, PageSchema, StatusFilterSchema
 
 booking_schema = BookingSchema()
+
+TRANSITIONS = {
+    "pending": {"confirmed", "cancelled"},
+    "confirmed": {"cancelled", "completed"},
+}
+
+
