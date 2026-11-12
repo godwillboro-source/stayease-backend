@@ -25,4 +25,27 @@ def can_view(user, booking):
         return booking.customer_id == user.id
     return booking.unit.property.manager_id == user.id
 
+@app.post("/api/bookings")
+@roles_required("customer")
+def create_booking():
+    data = load_or_400(booking_schema, request.get_json(silent=True))
+    unit = db.session.get(Unit, data["unit_id"])
+    if not unit or unit.property.status != "approved":
+        return error("Unit not found", 404)
+    if unit.available_units < 1:
+        return error("No units of this type are currently available", 409)
+
+    months = months_between(data["start_date"], data["end_date"])
+    booking = Booking(
+        customer_id=g.current_user.id,
+        unit_id=unit.id,
+        start_date=data["start_date"],
+        end_date=data["end_date"],
+        total_price=Decimal(unit.price_per_month) * months,
+        status="pending",
+    )
+    db.session.add(booking)
+    db.session.commit()
+    return jsonify(booking_schema.dump(booking)), 201
+
 
