@@ -14,4 +14,15 @@ TRANSITIONS = {
     "confirmed": {"cancelled", "completed"},
 }
 
+def months_between(start, end):
+    """Rent is charged per month; part of a month counts as a full month."""
+    return max(1, ceil((end - start).days / 30))
+
+def can_view(user, booking):
+    if user.role == "admin":
+        return True
+    if user.role == "customer":
+        return booking.customer_id == user.id
+    return booking.unit.property.manager_id == user.id
+
 
