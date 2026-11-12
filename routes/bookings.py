@@ -83,7 +83,6 @@ def get_booking(booking_id):
         return error("Booking not found", 404)
     return jsonify(booking_schema.dump(booking))
 
-
 @app.patch("/api/bookings/<int:booking_id>/status")
 @roles_required()
 def update_booking_status(booking_id):
