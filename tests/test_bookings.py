@@ -36,3 +36,13 @@ def test_booking_rules(client, manager_h, admin_h, customer_h):
 def test_cannot_book_unapproved_property(client, manager_h, admin_h, customer_h):
     _, unit = make_listing(client, manager_h, admin_h, approve=False)
     assert book(client, customer_h, unit["id"]).status_code == 404
+
+def test_cannot_confirm_when_sold_out(client, manager_h, admin_h, customer_h):
+    _, unit = make_listing(client, manager_h, admin_h)
+    ids = [book(client, customer_h, unit["id"]).get_json()["id"] for _ in range(3)]
+    codes = [
+        client.patch(f"/api/bookings/{booking_id}/status", headers=manager_h, json={"status": "confirmed"}).status_code
+        for booking_id in ids
+    ]
+    assert codes == [200, 200, 409]
+    assert book(client, customer_h, unit["id"]).status_code == 409
