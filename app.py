@@ -7,6 +7,7 @@ from marshmallow import ValidationError
 from werkzeug.exceptions import HTTPException
 
 from config import Config, db
+import models
 
 app = Flask(__name__)
 app.config.from_object(Config)
