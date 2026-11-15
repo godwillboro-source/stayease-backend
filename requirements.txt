@@ -4,5 +4,7 @@ Flask-Migrate==4.0.7
 Flask-Cors==4.0.1
 marshmallow==3.21.3
 python-dotenv==1.0.1
+gunicorn==27.0.1
+psycopg2-binary==2.9.13
 resend==2.53.2
 pytest==8.2.2
