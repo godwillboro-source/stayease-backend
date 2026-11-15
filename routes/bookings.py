@@ -1,5 +1,6 @@
 from decimal import Decimal
 from math import ceil
+from sqlalchemy import select
 from flask import g, jsonify, request
 from app import app
 from config import db
@@ -18,6 +19,29 @@ def months_between(start, end):
     """Rent is charged per month; part of a month counts as a full month."""
     return max(1, ceil((end - start).days / 30))
 
+
+def overlapping_confirmed_bookings(unit_id, start_date, end_date, exclude_booking_id=None):
+    query = Booking.query.filter(
+        Booking.unit_id == unit_id,
+        Booking.status == "confirmed",
+        Booking.start_date < end_date,
+        Booking.end_date > start_date,
+    )
+    if exclude_booking_id is not None:
+        query = query.filter(Booking.id != exclude_booking_id)
+    return query.count()
+
+
+def unit_has_capacity_for_dates(unit, start_date, end_date, exclude_booking_id=None):
+    overlapping = overlapping_confirmed_bookings(
+        unit.id,
+        start_date,
+        end_date,
+        exclude_booking_id=exclude_booking_id,
+    )
+    return overlapping < unit.total_units
+
+
 def can_view(user, booking):
     if user.role == "admin":
         return True
@@ -29,11 +53,13 @@ def can_view(user, booking):
 @roles_required("customer")
 def create_booking():
     data = load_or_400(booking_schema, request.get_json(silent=True))
-    unit = db.session.get(Unit, data["unit_id"])
+    unit = db.session.execute(
+        select(Unit).where(Unit.id == data["unit_id"]).with_for_update()
+    ).scalar_one_or_none()
     if not unit or unit.property.status != "approved":
         return error("Unit not found", 404)
-    if unit.available_units < 1:
-        return error("No units of this type are currently available", 409)
+    if not unit_has_capacity_for_dates(unit, data["start_date"], data["end_date"]):
+        return error("Unit is not available for the selected dates", 409)
 
     months = months_between(data["start_date"], data["end_date"])
     booking = Booking(
@@ -97,14 +123,35 @@ def update_booking_status(booking_id):
         return error("Customers can only cancel their bookings", 403)
     if new_status not in TRANSITIONS.get(booking.status, set()):
         return error(f"Cannot change a {booking.status} booking to {new_status}", 409)
-    unit = booking.unit
+
+    booking = db.session.execute(
+        select(Booking).where(Booking.id == booking_id).with_for_update()
+    ).scalar_one_or_none()
+    if booking is None:
+        return error("Booking not found", 404)
+    if not can_view(user, booking):
+        return error("Booking not found", 404)
+
+    unit = db.session.execute(
+        select(Unit).where(Unit.id == booking.unit_id).with_for_update()
+    ).scalar_one_or_none()
+    if unit is None:
+        return error("Unit not found", 404)
+
     if new_status == "confirmed":
-        if unit.available_units < 1:
-            return error("No units of this type are available to confirm", 409)
-        unit.available_units -= 1
+        if not unit_has_capacity_for_dates(
+            unit,
+            booking.start_date,
+            booking.end_date,
+            exclude_booking_id=booking.id,
+        ):
+            return error("No units of this type are available for those dates", 409)
+        unit.available_units = max(0, unit.available_units - 1)
     elif booking.status == "confirmed" and new_status in ("cancelled", "completed"):
         unit.available_units = min(unit.total_units, unit.available_units + 1)
+
     booking.status = new_status
+    db.session.add(booking)
     db.session.commit()
     return jsonify(booking_schema.dump(booking))
 
