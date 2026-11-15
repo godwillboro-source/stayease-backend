@@ -30,6 +30,9 @@ class Config:
     ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@rental.com")
     ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "Admin@1234")
 
+    RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+    RESEND_FROM_EMAIL = os.getenv("RESEND_FROM_EMAIL")
+
 
 class TestConfig(Config):
     TESTING = True

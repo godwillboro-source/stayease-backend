@@ -2,6 +2,7 @@ from flask import g, jsonify, request, session
 
 from app import app
 from config import db
+from email_service import EmailDeliveryError, send_sign_in_notification, send_welcome_email
 from helpers import error, load_or_400, roles_required
 from models import User
 from schemas import LoginSchema, RegisterSchema, UserSchema
@@ -29,10 +30,21 @@ def register():
     db.session.add(user)
     db.session.commit()
 
+    email_sent = True
+    try:
+        send_welcome_email(user.email, user.name)
+    except EmailDeliveryError as exc:
+        app.logger.warning("Welcome email delivery failed for user id %s: %s", user.id, exc)
+        email_sent = False
+
     message = "Registered successfully"
     if user.role == "manager":
         message += ". An admin must approve your account before you can list properties"
-    return jsonify({"message": message, "user": user_schema.dump(user)}), 201
+    return jsonify({
+        "message": message,
+        "user": user_schema.dump(user),
+        "email_sent": email_sent,
+    }), 201
 
 
 @app.post("/api/auth/login")
@@ -46,7 +58,16 @@ def login():
 
     session.clear()
     session["user_id"] = user.id
-    return jsonify({"user": session_user_schema.dump(user)})
+    email_notification_sent = True
+    try:
+        send_sign_in_notification(user.email, user.name)
+    except EmailDeliveryError as exc:
+        app.logger.warning("Sign-in notification failed for user id %s: %s", user.id, exc)
+        email_notification_sent = False
+    return jsonify({
+        "user": session_user_schema.dump(user),
+        "email_notification_sent": email_notification_sent,
+    })
 
 
 @app.post("/api/auth/logout")

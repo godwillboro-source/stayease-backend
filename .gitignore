@@ -1,6 +1,66 @@
-.venv/
+# Python bytecode and caches
 __pycache__/
-*.db
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments and local packages
+.venv/
+venv/
+env/
+ENV/
+__pypackages__/
+
+# Environment files and secrets
 .env
+.env.*
+!.env.example
+!.env.*.example
+.flaskenv
+
+# Local databases and Flask instance data
+*.db
+*.sqlite
+*.sqlite3
+*.db-*
+*.sqlite-*
 instance/
+
+# Tests, coverage, and type-checker caches
 .pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit.xml
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.pytype/
+.ruff_cache/
+.pyright/
+
+# Build and packaging output
+build/
+dist/
+site/
+wheels/
+pip-wheel-metadata/
+*.egg
+*.egg-info/
+.eggs/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

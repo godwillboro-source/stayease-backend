@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from .conftest import login, register
 
 
@@ -11,6 +13,47 @@ def test_register_login_me(client):
     assert set(user) == {"id", "name", "role"}
     assert user["name"] == "Carl"
     assert user["role"] == "customer"
+
+
+def test_register_sends_welcome_email(client):
+    with patch("routes.auth.send_welcome_email") as send_welcome:
+        response = register(client, "Carl", "carl@test.com", "customer")
+
+    assert response.status_code == 201
+    assert response.get_json()["email_sent"] is True
+    send_welcome.assert_called_once_with("carl@test.com", "Carl")
+
+
+def test_login_sends_sign_in_notification(client):
+    register(client, "Carl", "carl@test.com", "customer")
+    with patch("routes.auth.send_sign_in_notification") as send_notification:
+        response = client.post(
+            "/api/auth/login",
+            json={"email": "carl@test.com", "password": "Password1!"},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["email_notification_sent"] is True
+    send_notification.assert_called_once_with("carl@test.com", "Carl")
+
+
+def test_email_delivery_failure_is_reported_without_blocking_auth(client):
+    from email_service import EmailDeliveryError
+
+    with patch("routes.auth.send_welcome_email", side_effect=EmailDeliveryError("Resend is not configured")):
+        registration = register(client, "Carl", "carl@test.com", "customer")
+
+    assert registration.status_code == 201
+    assert registration.get_json()["email_sent"] is False
+
+    with patch("routes.auth.send_sign_in_notification", side_effect=EmailDeliveryError("Resend is not configured")):
+        response = client.post(
+            "/api/auth/login",
+            json={"email": "carl@test.com", "password": "Password1!"},
+        )
+
+    assert response.status_code == 200
+    assert response.get_json()["email_notification_sent"] is False
 
 
 def test_cannot_register_as_admin(client):
