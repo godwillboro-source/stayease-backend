@@ -13,6 +13,31 @@ session_user_schema = UserSchema(only=("id", "name", "role"))
 
 @app.post("/api/auth/register")
 def register():
+    """Create a customer or manager account.
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [name, email, password, role]
+          properties:
+            name: {type: string}
+            email: {type: string, format: email}
+            phone: {type: string}
+            password: {type: string, format: password}
+            role: {type: string, enum: [manager, customer]}
+    responses:
+      201:
+        description: Account created.
+      400:
+        description: Invalid registration data.
+      409:
+        description: Email is already registered.
+    """
     data = load_or_400(RegisterSchema(), request.get_json(silent=True))
     email = data["email"].lower()
     if User.query.filter_by(email=email).first():
@@ -49,6 +74,28 @@ def register():
 
 @app.post("/api/auth/login")
 def login():
+    """Log in and create a session.
+    ---
+    tags:
+      - Authentication
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [email, password]
+          properties:
+            email: {type: string, format: email}
+            password: {type: string, format: password}
+    responses:
+      200:
+        description: Login succeeded.
+      401:
+        description: Invalid email or password.
+      403:
+        description: Account is blocked.
+    """
     data = load_or_400(LoginSchema(), request.get_json(silent=True))
     user = User.query.filter_by(email=data["email"].lower()).first()
     if not user or not user.check_password(data["password"]):
@@ -73,6 +120,16 @@ def login():
 @app.delete("/api/auth/logout")
 @roles_required()
 def logout():
+    """End the current session.
+    ---
+    tags:
+      - Authentication
+    responses:
+      200:
+        description: Session ended.
+      401:
+        description: Authentication required.
+    """
     session.clear()
     return jsonify({"message": "Logged out successfully"})
 
@@ -80,4 +137,14 @@ def logout():
 @app.get("/api/auth/me")
 @roles_required()
 def me():
+    """Return the current user's basic profile.
+    ---
+    tags:
+      - Authentication
+    responses:
+      200:
+        description: Current user.
+      401:
+        description: Authentication required.
+    """
     return jsonify(session_user_schema.dump(g.current_user))

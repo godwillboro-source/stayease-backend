@@ -12,6 +12,50 @@ unit_list_schema = UnitListSchema()
 
 @app.get("/api/units")
 def browse_units():
+    """Browse units in approved properties.
+    ---
+    tags:
+      - Units
+    parameters:
+      - in: query
+        name: city_id
+        type: integer
+      - in: query
+        name: city
+        type: string
+      - in: query
+        name: area
+        type: string
+      - in: query
+        name: unit_type
+        type: string
+      - in: query
+        name: min_price
+        type: number
+        format: decimal
+      - in: query
+        name: max_price
+        type: number
+        format: decimal
+      - in: query
+        name: sort
+        type: string
+        enum: [newest, price_asc, price_desc]
+      - in: query
+        name: page
+        type: integer
+        minimum: 1
+      - in: query
+        name: per_page
+        type: integer
+        minimum: 1
+        maximum: 50
+    responses:
+      200:
+        description: Paginated units with property summaries.
+      400:
+        description: Invalid filter.
+    """
     """Public: compare prices across managers. Filter by city, type and price, sort by price."""
     f = load_or_400(BrowseQuerySchema(), request.args.to_dict())
 
@@ -40,6 +84,21 @@ def browse_units():
 
 @app.get("/api/units/<int:unit_id>")
 def get_unit(unit_id):
+    """Get a unit in an approved property.
+    ---
+    tags:
+      - Units
+    parameters:
+      - in: path
+        name: unit_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Unit details.
+      404:
+        description: Unit not found.
+    """
     unit = db.get_or_404(Unit, unit_id)
     if unit.property.status != "approved":
         return error("Unit not found", 404)
@@ -56,6 +115,39 @@ def _own_property_or_error(property_id):
 @app.post("/api/properties/<int:property_id>/units")
 @roles_required("manager", approved_only=True)
 def create_unit(property_id):
+    """Create a unit in a property owned by the current manager.
+    ---
+    tags:
+      - Units
+    parameters:
+      - in: path
+        name: property_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [unit_type, price_per_month]
+          properties:
+            unit_type: {type: string}
+            price_per_month: {type: number, format: decimal}
+            bathrooms: {type: integer}
+            amenities: {type: string}
+            image_url: {type: string, format: url}
+            total_units: {type: integer, minimum: 1}
+            available_units: {type: integer, minimum: 0}
+    responses:
+      201:
+        description: Unit created.
+      400:
+        description: Invalid unit data.
+      403:
+        description: Property is owned by another manager.
+      404:
+        description: Property not found.
+    """
     prop, err = _own_property_or_error(property_id)
     if err:
         return err
@@ -73,6 +165,38 @@ def create_unit(property_id):
 @app.put("/api/units/<int:unit_id>")
 @roles_required("manager", approved_only=True)
 def update_unit(unit_id):
+    """Update a unit owned by the current manager.
+    ---
+    tags:
+      - Units
+    parameters:
+      - in: path
+        name: unit_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          properties:
+            unit_type: {type: string}
+            price_per_month: {type: number, format: decimal}
+            bathrooms: {type: integer}
+            amenities: {type: string}
+            image_url: {type: string, format: url}
+            total_units: {type: integer, minimum: 1}
+            available_units: {type: integer, minimum: 0}
+    responses:
+      200:
+        description: Updated unit.
+      400:
+        description: Invalid unit data or availability.
+      403:
+        description: Unit is owned by another manager.
+      404:
+        description: Unit not found.
+    """
     unit = db.get_or_404(Unit, unit_id)
     if unit.property.manager_id != g.current_user.id:
         return error("You can only edit units in your own properties", 403)
@@ -89,6 +213,23 @@ def update_unit(unit_id):
 @app.delete("/api/units/<int:unit_id>")
 @roles_required("manager", "admin")
 def delete_unit(unit_id):
+    """Delete a unit.
+    ---
+    tags:
+      - Units
+    parameters:
+      - in: path
+        name: unit_id
+        required: true
+        type: integer
+    responses:
+      204:
+        description: Unit deleted.
+      403:
+        description: Unit is owned by another manager.
+      404:
+        description: Unit not found.
+    """
     unit = db.get_or_404(Unit, unit_id)
     user = g.current_user
     if user.role == "manager" and unit.property.manager_id != user.id:

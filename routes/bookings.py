@@ -52,6 +52,31 @@ def can_view(user, booking):
 @app.post("/api/bookings")
 @roles_required("customer")
 def create_booking():
+    """Request a booking for an available unit.
+    ---
+    tags:
+      - Bookings
+    parameters:
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [unit_id, start_date, end_date]
+          properties:
+            unit_id: {type: integer}
+            start_date: {type: string, format: date}
+            end_date: {type: string, format: date}
+    responses:
+      201:
+        description: Booking created with pending status.
+      400:
+        description: Invalid booking data.
+      404:
+        description: Unit not found or not available for booking.
+      409:
+        description: No capacity for the selected dates.
+    """
     data = load_or_400(booking_schema, request.get_json(silent=True))
     unit = db.session.execute(
         select(Unit).where(Unit.id == data["unit_id"]).with_for_update()
@@ -77,6 +102,28 @@ def create_booking():
 @app.get("/api/bookings/mine")
 @roles_required("customer")
 def my_bookings():
+    """List the current customer's bookings.
+    ---
+    tags:
+      - Bookings
+    parameters:
+      - in: query
+        name: status
+        type: string
+        enum: [pending, confirmed, cancelled, completed]
+      - in: query
+        name: page
+        type: integer
+        minimum: 1
+      - in: query
+        name: per_page
+        type: integer
+        minimum: 1
+        maximum: 50
+    responses:
+      200:
+        description: Paginated bookings.
+    """
     f = load_or_400(StatusFilterSchema(), request.args.to_dict())
     query = Booking.query.filter_by(customer_id=g.current_user.id)
     if f.get("status"):
@@ -87,7 +134,28 @@ def my_bookings():
 @app.get("/api/bookings")
 @roles_required("manager", "admin")
 def list_bookings():
-    """Managers see bookings for their own properties; admins see everything."""
+    """List bookings for the manager's properties or all bookings for an admin.
+    ---
+    tags:
+      - Bookings
+    parameters:
+      - in: query
+        name: status
+        type: string
+        enum: [pending, confirmed, cancelled, completed]
+      - in: query
+        name: page
+        type: integer
+        minimum: 1
+      - in: query
+        name: per_page
+        type: integer
+        minimum: 1
+        maximum: 50
+    responses:
+      200:
+        description: Paginated bookings.
+    """
     f = load_or_400(StatusFilterSchema(), request.args.to_dict())
     query = Booking.query
     if g.current_user.role == "manager":
@@ -104,6 +172,21 @@ def list_bookings():
 @app.get("/api/bookings/<int:booking_id>")
 @roles_required()
 def get_booking(booking_id):
+    """Get a booking visible to the current user.
+    ---
+    tags:
+      - Bookings
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        type: integer
+    responses:
+      200:
+        description: Booking details.
+      404:
+        description: Booking not found.
+    """
     booking = db.get_or_404(Booking, booking_id)
     if not can_view(g.current_user, booking):
         return error("Booking not found", 404)
@@ -112,6 +195,35 @@ def get_booking(booking_id):
 @app.patch("/api/bookings/<int:booking_id>/status")
 @roles_required()
 def update_booking_status(booking_id):
+    """Change a booking's status.
+    ---
+    tags:
+      - Bookings
+    parameters:
+      - in: path
+        name: booking_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [status]
+          properties:
+            status: {type: string, enum: [pending, confirmed, cancelled, completed]}
+    responses:
+      200:
+        description: Updated booking.
+      400:
+        description: Invalid status.
+      403:
+        description: The user's role does not allow this status change.
+      404:
+        description: Booking not found.
+      409:
+        description: Invalid status transition or no available capacity.
+    """
     booking = db.get_or_404(Booking, booking_id)
     user = g.current_user
     if not can_view(user, booking):

@@ -23,6 +23,38 @@ property_schema = PropertySchema()
 @app.get("/api/admin/users")
 @roles_required("admin")
 def list_users():
+    """List users with optional filters.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: query
+        name: role
+        type: string
+        enum: [manager, customer, admin]
+      - in: query
+        name: is_approved
+        type: boolean
+      - in: query
+        name: is_active
+        type: boolean
+      - in: query
+        name: page
+        type: integer
+        minimum: 1
+      - in: query
+        name: per_page
+        type: integer
+        minimum: 1
+        maximum: 50
+    responses:
+      200:
+        description: Paginated users.
+      401:
+        description: Authentication required.
+      403:
+        description: Admin access required.
+    """
     f = load_or_400(UserFilterSchema(), request.args.to_dict())
     query = User.query
     for field in ("role", "is_approved", "is_active"):
@@ -35,6 +67,30 @@ def list_users():
 @app.patch("/api/admin/users/<int:user_id>")
 @roles_required("admin")
 def update_user(user_id):
+    """Approve or block a user.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: path
+        name: user_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        schema:
+          type: object
+          properties:
+            is_approved: {type: boolean}
+            is_active: {type: boolean}
+    responses:
+      200:
+        description: Updated user.
+      400:
+        description: Invalid update.
+      404:
+        description: User not found.
+    """
     user = db.get_or_404(User, user_id)
     data = load_or_400(AdminUserUpdateSchema(), request.get_json(silent=True))
     if user.id == g.current_user.id and data.get("is_active") is False:
@@ -48,7 +104,28 @@ def update_user(user_id):
 @app.get("/api/admin/properties")
 @roles_required("admin")
 def list_all_properties():
-    """All properties in every status. Use ?status=pending to see those waiting for review."""
+    """List properties in every status.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: query
+        name: status
+        type: string
+        enum: [pending, approved, rejected]
+      - in: query
+        name: page
+        type: integer
+        minimum: 1
+      - in: query
+        name: per_page
+        type: integer
+        minimum: 1
+        maximum: 50
+    responses:
+      200:
+        description: Paginated properties.
+    """
     f = load_or_400(StatusFilterSchema(), request.args.to_dict())
     query = Property.query
     if f.get("status"):
@@ -60,6 +137,31 @@ def list_all_properties():
 @app.patch("/api/admin/properties/<int:property_id>/status")
 @roles_required("admin")
 def set_property_status(property_id):
+    """Approve or reject a property.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: path
+        name: property_id
+        required: true
+        type: integer
+      - in: body
+        name: body
+        required: true
+        schema:
+          type: object
+          required: [status]
+          properties:
+            status: {type: string, enum: [pending, approved, rejected]}
+    responses:
+      200:
+        description: Updated property.
+      400:
+        description: Invalid status.
+      404:
+        description: Property not found.
+    """
     prop = db.get_or_404(Property, property_id)
     prop.status = load_or_400(PropertyStatusSchema(), request.get_json(silent=True))["status"]
     db.session.commit()
@@ -69,6 +171,14 @@ def set_property_status(property_id):
 @app.get("/api/admin/stats")
 @roles_required("admin")
 def stats():
+    """Return administrative platform statistics.
+    ---
+    tags:
+      - Admin
+    responses:
+      200:
+        description: User, listing, booking, and revenue statistics.
+    """
     revenue = (
         db.session.query(func.coalesce(func.sum(Booking.total_price), 0))
         .filter(Booking.status.in_(("confirmed", "completed")))

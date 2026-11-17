@@ -5,12 +5,17 @@ from flask_cors import CORS
 from flask_migrate import Migrate
 from marshmallow import ValidationError
 from werkzeug.exceptions import HTTPException
+from flasgger import Swagger
 
 from config import Config, db
 import models
 
 app = Flask(__name__)
 app.config.from_object(Config)
+swagger = Swagger(
+    app,
+    template={"info": {"title": "StayEase API", "version": "1.0.0"}},
+)
 
 db.init_app(app)
 migrate = Migrate(app, db)
@@ -28,6 +33,14 @@ def index():
 
 @app.get("/api/health")
 def health():
+    """Check API availability.
+    ---
+    tags:
+      - Health
+    responses:
+      200:
+        description: API is available.
+    """
     return jsonify({"status": "ok"})
 
 
