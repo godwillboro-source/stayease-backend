@@ -95,7 +95,9 @@ def test_logout_clears_session(client):
     cookie = response.headers["Set-Cookie"].split(";", 1)[0]
     assert client.get("/api/auth/me", headers={"Cookie": cookie}).status_code == 200
 
-    response = client.post("/api/auth/logout", headers={"Cookie": cookie})
+    assert client.post("/api/auth/logout", headers={"Cookie": cookie}).status_code == 405
+
+    response = client.delete("/api/auth/logout", headers={"Cookie": cookie})
 
     assert response.status_code == 200
     assert response.headers["Set-Cookie"].startswith("session=;")

@@ -70,7 +70,7 @@ def login():
     })
 
 
-@app.post("/api/auth/logout")
+@app.delete("/api/auth/logout")
 @roles_required()
 def logout():
     session.clear()
