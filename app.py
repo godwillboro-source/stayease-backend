@@ -58,7 +58,7 @@ if __name__ == "__main__":
     sys.modules["app"] = sys.modules[__name__]
 
 
-from routes import admin, auth, bookings, cities, properties, units
+from routes import admin, auth, bookings, cities, properties, units, uploads
 
 
 if __name__ == "__main__":

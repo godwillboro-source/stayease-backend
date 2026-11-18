@@ -101,6 +101,36 @@ def update_user(user_id):
     return jsonify(user_schema.dump(user))
 
 
+@app.delete("/api/admin/users/<int:user_id>")
+@roles_required("admin")
+def delete_user(user_id):
+    """Permanently delete a manager or customer and their related records.
+    ---
+    tags:
+      - Admin
+    parameters:
+      - in: path
+        name: user_id
+        required: true
+        type: integer
+    responses:
+      204:
+        description: User and related records deleted.
+      400:
+        description: Admin accounts cannot be deleted with this endpoint.
+      403:
+        description: Admin access required.
+      404:
+        description: User not found.
+    """
+    user = db.get_or_404(User, user_id)
+    if user.role not in ("manager", "customer"):
+        return error("Only manager and customer accounts can be deleted", 400)
+    db.session.delete(user)
+    db.session.commit()
+    return "", 204
+
+
 @app.get("/api/admin/properties")
 @roles_required("admin")
 def list_all_properties():

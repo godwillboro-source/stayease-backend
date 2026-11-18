@@ -22,6 +22,19 @@ pytest                             # run the tests
 
 Apply the existing database migrations with `flask --app app db upgrade`.
 
+## Property image uploads
+
+Create a Cloudinary account and add its cloud name, API key, and API secret to
+your local `.env` file using the `CLOUDINARY_*` variables in `.env.example`.
+Keep the API secret on the backend; do not put it in frontend code.
+
+An approved manager uploads an image as multipart form data to
+`POST /api/uploads/images`, using the field name `image`. The endpoint accepts
+JPEG, PNG, and WebP files up to 5 MB, and returns
+`{"image_url": "https://..."}`. Include that URL as `image_url` in the
+JSON request to create or update a property or unit. The frontend must send
+requests with `credentials: "include"` so the manager's session cookie is sent.
+
 ## Postman
 
 Start the server with `python app.py`, then send requests to `http://127.0.0.1:5555`. Log in at `POST /api/auth/login` before calling protected endpoints; Postman will reuse the session cookie for requests to the same host.
@@ -60,6 +73,7 @@ Lists are paginated: `?page=1&per_page=10` returns `{items, page, per_page, tota
 | POST | `/api/auth/login` | public | Start a session |
 | POST | `/api/auth/logout` | any user | Clear the current session |
 | GET | `/api/auth/me` | any user | Current user |
+| POST | `/api/uploads/images` | approved manager | Upload an image to Cloudinary and get its URL |
 | GET | `/api/cities` | public | List cities (for dropdowns) |
 | POST / PUT / DELETE | `/api/cities`, `/api/cities/<id>` | admin | Manage cities |
 | GET | `/api/properties` | public | Approved properties. Filters: `city_id`, `city`, `area`, `unit_type`, `min_price`, `max_price` |
@@ -79,6 +93,7 @@ Lists are paginated: `?page=1&per_page=10` returns `{items, page, per_page, tota
 | PATCH | `/api/bookings/<id>/status` | see below | Change booking status |
 | GET | `/api/admin/users` | admin | Filter by `role`, `is_approved`, `is_active` |
 | PATCH | `/api/admin/users/<id>` | admin | Approve a manager / block or unblock a user |
+| DELETE | `/api/admin/users/<id>` | admin | Permanently delete a manager or customer and related records |
 | GET | `/api/admin/properties` | admin | All properties, `?status=pending` to review |
 | PATCH | `/api/admin/properties/<id>/status` | admin | `approved` / `rejected` / `pending` |
 | GET | `/api/admin/stats` | admin | Counts and revenue |
