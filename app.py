@@ -7,8 +7,8 @@ from marshmallow import ValidationError
 from werkzeug.exceptions import HTTPException
 from flasgger import Swagger
 
+import models  # noqa: F401 -- registers models with SQLAlchemy metadata
 from config import Config, db
-import models
 
 app = Flask(__name__)
 app.config.from_object(Config)
