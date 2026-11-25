@@ -58,7 +58,7 @@ seed.py              resets and reloads demo data
 Log in at `POST /api/auth/login` to establish a Flask session. The server sends a signed session cookie; send that cookie with protected requests. In Postman, use the same host for login and later requests so its cookie jar can reuse the cookie. Browser clients calling this API from another origin must use `credentials: "include"` with `fetch`.
 Successful login and `GET /api/auth/me` return only the user's `id`, `name`, and `role`.
 
-`POST /api/auth/logout` clears the current session cookie. Flask's default session is stored in a signed cookie, not in the database, so keep only non-sensitive session data in it. For HTTPS deployments, set `SESSION_COOKIE_SECURE=true`; the default `SESSION_COOKIE_SAMESITE=Lax` can be changed when the frontend is hosted on a different site.
+`DELETE /api/auth/logout` clears the current session cookie. Flask's default session is stored in a signed cookie, not in the database, so keep only non-sensitive session data in it. For HTTPS deployments, set `SESSION_COOKIE_SECURE=true`; the default `SESSION_COOKIE_SAMESITE=Lax` can be changed when the frontend is hosted on a different site.
 
 Managers register with `is_approved = false` and cannot create properties until an admin approves them.
 Admins cannot be created through the API. The admin demo account is created by `seed.py`.
@@ -71,7 +71,7 @@ Lists are paginated: `?page=1&per_page=10` returns `{items, page, per_page, tota
 |---|---|---|---|
 | POST | `/api/auth/register` | public | Sign up as `manager` or `customer` |
 | POST | `/api/auth/login` | public | Start a session |
-| POST | `/api/auth/logout` | any user | Clear the current session |
+| DELETE | `/api/auth/logout` | any user | Clear the current session |
 | GET | `/api/auth/me` | any user | Current user |
 | POST | `/api/uploads/images` | approved manager | Upload an image to Cloudinary and get its URL |
 | GET | `/api/cities` | public | List cities (for dropdowns) |
